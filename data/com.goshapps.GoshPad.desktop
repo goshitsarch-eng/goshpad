@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=GoshPad
+GenericName=Text Editor
+Comment=A plain-text editor in the style of classic Microsoft Notepad
+Exec=goshpad %F
+Icon=com.goshapps.GoshPad
+Terminal=false
+Categories=Utility;TextEditor;Qt;KDE;
+MimeType=text/plain;
+Keywords=goshpad;notepad;text;editor;plaintext;
+StartupNotify=true

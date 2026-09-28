@@ -2,81 +2,68 @@
 
 ## Setup
 
-You need a recent stable Rust toolchain (1.93 or newer — libcosmic requires
-it), plus the usual desktop build deps. On Fedora:
+You need CMake, a C++20 compiler, Qt 6.5 or newer (Qt Quick, Qt Quick
+Controls, and Qt Quick Dialogs), and these KDE Frameworks 6 modules:
+Kirigami, KConfig, KI18n, KCoreAddons, and KDBusAddons. Extra CMake Modules
+must be on `CMAKE_PREFIX_PATH` (usually the same prefix as the frameworks).
+
+On Fedora:
 
 ```bash
-sudo dnf install cargo git just cmake pkgconf \
-    expat-devel fontconfig-devel freetype-devel libxkbcommon-devel
+sudo dnf install cmake ninja-build gcc-c++ extra-cmake-modules \
+    qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtquickcontrols2-devel \
+    kf6-kirigami-devel kf6-kconfig-devel kf6-ki18n-devel \
+    kf6-kcoreaddons-devel kf6-kdbusaddons-devel
 ```
 
-On Pop!_OS / Ubuntu:
+On Arch Linux the same pieces are the `cmake`, `extra-cmake-modules`,
+`qt6-base`, `qt6-declarative`, `kirigami`, `kconfig`, `ki18n`,
+`kcoreaddons`, and `kdbusaddons` packages.
 
-```bash
-sudo apt install cargo cmake just libexpat1-dev libfontconfig-dev \
-    libfreetype-dev libxkbcommon-dev pkgconf
-```
-
-`just` is optional — the build/test/lint recipes wrap the cargo commands
-shown below (`install`/`uninstall`/`vendor*` are plain file operations).
+`just` is optional. The recipes wrap CMake.
 
 ## Build, run, test
 
 ```bash
-cargo build --locked      # debug build
-just run                  # release build + run (RUST_BACKTRACE=full)
-cargo test --locked       # unit + packaging tests (49 tests)
-cargo clippy --all-targets --locked -- -D warnings   # lint gate
-just check                # optional stricter pass (clippy::pedantic, warnings only)
-cargo fmt --check         # formatting gate
+just build-debug
+just test          # CTest (textops, document, controller) and tests/packaging.sh
+just run           # release build, then goshpad
+sudo just install  # default prefix /usr
 ```
 
-Keep the tree green: `fmt`, `clippy -D warnings`, and `cargo test --locked`
-should all pass before you send a change.
+`tests/packaging.sh` checks that CMake, the metainfo, the README release
+line, the desktop file, and `com.goshapps.GoshPad.json` agree on version
+4.0.0, the app id, the binary name, the KDE 6.9 runtime, and the Flatpak
+finish-args. Update that script in the same change if you intentionally
+change any of those.
 
-`tests/packaging.rs` pins more than you might expect — it asserts on
-README strings (the current-release line, "leading check column"), the
-manifest's finish-args (exactly six), the libcosmic rev pin in both
-`Cargo.toml` and `Cargo.lock`, and license installation lines. If you
-intentionally change any of those, update the test in the same commit.
-
-## Vendored dependencies
-
-`cargo` builds from the network by default. The vendored copy under `vendor/`
-exists only for the **offline Flatpak build** — `scripts/vendor.sh`
-materializes `vendor/` + `.cargo/config.toml` (both gitignored) and caches
-them in `vendor.tar`. While `vendor/` is materialized, all cargo commands run
-offline against it; `just clean-vendor` removes it again. Re-run the script
-whenever `Cargo.lock` changes.
-
-Use `scripts/vendor.sh`, not `just vendor`: the just recipe deletes `vendor/`
-after tarring it, leaving `.cargo/config.toml` pointed at a directory that no
-longer exists — plain cargo commands fail until `just vendor-extract` (or
-`just clean-vendor`) puts the tree back.
+There is no Rust toolchain, Fluent catalog, or vendored crate tree.
 
 ## Flatpak development build
 
 ```bash
-./scripts/vendor.sh
+flatpak install --user -y flathub org.kde.Platform//6.9 org.kde.Sdk//6.9
 flatpak-builder --user --install-deps-from=flathub --install --force-clean \
-    build-flatpak com.goshapps.Notepad.json
-flatpak run com.goshapps.Notepad
+    build-flatpak com.goshapps.GoshPad.json
+flatpak run com.goshapps.GoshPad
 ```
 
 ## Style notes
 
-- `app.rs` is a monolith on purpose: `Message` enum + one `update` match, iced
-  style. Editor logic that can be pure (find/replace/go-to/caret math) lives
-  in `commands.rs` so it stays unit-testable.
-- User-visible strings go through `fl!()` with keys in
-  `i18n/en/notepad.ftl`.
-- Tests that touch the app state use the `#[cfg(test)]` harness
-  (`src/app_test_harness.rs`) — never the real `~/.config`.
-- No open PR/MR process is formalized — this is a personal project. Filing an
+- Search, replace, go-to, and caret math live in `src/textops.cpp` and are
+  tested without a window.
+- The document buffer in `src/document.cpp` keeps the on-disk line endings.
+  The QML text area sees `\n` only. Do not normalize a file to `\n` on save
+  if the user did not edit that break.
+- User-visible strings go through KI18n: `i18n()` in C++ and QML. English
+  is the only shipped locale. Do not add a translation catalog unless you
+  are also adding a real translation.
+- Controller tests must call `QStandardPaths::setTestModeEnabled(true)` so
+  they do not write `~/.config/com.goshapps.GoshPadrc`.
+- No open PR process is formalized — this is a personal project. Filing an
   issue first is a good idea for anything beyond a small fix.
 
 ## Translations
 
-Only `i18n/en/notepad.ftl` ships today. To add a locale, copy it to
-`i18n/<lang>/notepad.ftl` and translate the values; the loader picks the
-session language automatically.
+Strings are marked with `i18n()` / `i18nc()`. No `po/` files ship. A future
+translation would be a KI18n gettext catalog for the `goshpad` domain.

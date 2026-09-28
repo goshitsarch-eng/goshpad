@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.goshapps.Notepad</id>
+  <id>com.goshapps.GoshPad</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>NotePad</name>
-  <summary>A native COSMIC clone of Microsoft Notepad</summary>
+  <name>GoshPad</name>
+  <summary>A plain-text editor in the style of classic Microsoft Notepad</summary>
   <description>
     <p>
-      NotePad is a lightweight plain-text editor that recreates the classic
-      Microsoft Notepad (Windows XP) experience using libcosmic, with support
-      for system, light, and dark color schemes on the COSMIC desktop.
+      GoshPad is a lightweight plain-text editor that recreates the classic
+      Microsoft Notepad (Windows XP) experience with Qt 6 and Kirigami, including
+      system, light, and dark color schemes.
     </p>
     <p>
       This is an independent implementation and is not affiliated with or
@@ -26,35 +26,32 @@
       <li>System, light, and dark color schemes</li>
     </ul>
   </description>
-  <launchable type="desktop-id">com.goshapps.Notepad.desktop</launchable>
-  <url type="homepage">https://github.com/goshitsarch-eng/notepad</url>
-  <url type="bugtracker">https://github.com/goshitsarch-eng/notepad/issues</url>
+  <launchable type="desktop-id">com.goshapps.GoshPad.desktop</launchable>
+  <url type="homepage">https://github.com/goshitsarch-eng/goshpad</url>
+  <url type="bugtracker">https://github.com/goshitsarch-eng/goshpad/issues</url>
   <developer id="com.goshapps">
     <name>Gosh</name>
   </developer>
   <provides>
-    <id>com.system76.CosmicApplication</id>
-      <binary>notepad</binary>
+    <binary>goshpad</binary>
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="4.0.0" date="2026-09-14">
+      <description>
+        <p>
+          GoshPad 4.0.0 is a ground-up rewrite on Qt 6 and Kirigami. The
+          application is no longer a COSMIC or libcosmic program. Settings are
+          stored with KConfig, color schemes follow the system or pin to light
+          or dark, and a second launch activates the running window.
+        </p>
+      </description>
+    </release>
     <release version="3.0.0" date="2026-09-06">
       <description>
         <p>
-          Rewritten on libcosmic. NotePad is now a native COSMIC application
-          with portal file dialogs, cosmic-config persistence, and system,
-          light, and dark themes from the COSMIC desktop.
-        </p>
-        <p>
-          The File, Edit, Format, View, and Help menus share a leading check
-          column so command, toggle, and submenu labels line up.
-        </p>
-        <p>
-          Closing the window prompts to save, and Save from that dialog
-          continues New, Open, or Exit after Save As. A second launch focuses
-          the existing window and forwards file paths. Find, Go To, and the
-          status bar handle UTF-8 text. Undo and Redo restore the caret.
-          Word wrap, font, status bar, and color scheme persist in Flatpak.
+          Rewritten on libcosmic. NotePad was a native COSMIC application.
+          That toolkit was removed in 4.0.0.
         </p>
       </description>
     </release>
@@ -94,9 +91,8 @@
     <release version="2.0.0" date="2026-08-29">
       <description>
         <p>
-          Rewritten on Qt 6. Light and dark theming now follows the Kirigami
-          color guidelines: the app honors the system color scheme by default
-          and can be pinned to a light or dark scheme from the View menu.
+          Rewritten on Qt 6. Light and dark theming followed the Kirigami
+          color guidelines.
         </p>
       </description>
     </release>

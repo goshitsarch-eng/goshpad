@@ -4,15 +4,11 @@
 # Usage: scripts/verify-release.sh <dir> <version>
 #
 # Requires all of:
-#   notepad-v<ver>-linux-x86_64.tar.gz
-#   notepad-v<ver>-linux-aarch64.tar.gz
-#   notepad-v<ver>-linux-x86_64.flatpak
-#   notepad-v<ver>-linux-aarch64.flatpak
-#   SHA256SUMS        (verified with sha256sum -c when present)
-#
-# Each tarball must extract and contain an executable bin/notepad of the
-# claimed architecture; each flatpak bundle must embed the matching
-# app/<id>/<arch>/stable ref.
+#   goshpad-v<ver>-linux-x86_64.tar.gz
+#   goshpad-v<ver>-linux-aarch64.tar.gz
+#   goshpad-v<ver>-linux-x86_64.flatpak
+#   goshpad-v<ver>-linux-aarch64.flatpak
+#   SHA256SUMS
 set -euo pipefail
 
 dir="${1:?usage: verify-release.sh <dir> <version>}"
@@ -24,8 +20,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 for arch in x86_64 aarch64; do
-    tb="notepad-v${version}-linux-${arch}.tar.gz"
-    fp="notepad-v${version}-linux-${arch}.flatpak"
+    tb="goshpad-v${version}-linux-${arch}.tar.gz"
+    fp="goshpad-v${version}-linux-${arch}.flatpak"
     case "$arch" in x86_64) elf='x86-64' ;; *) elf='aarch64' ;; esac
 
     [ -s "$tb" ] || fail "missing or empty: $tb"
@@ -33,12 +29,12 @@ for arch in x86_64 aarch64; do
 
     tar -xzf "$tb" -C "$tmp" ||
         fail "$tb is not a valid gzip tarball"
-    bin="$tmp/notepad-v${version}-linux-${arch}/bin/notepad"
-    [ -x "$bin" ] || fail "$tb lacks executable bin/notepad"
+    bin="$tmp/goshpad-v${version}-linux-${arch}/bin/goshpad"
+    [ -x "$bin" ] || fail "$tb lacks executable bin/goshpad"
     file "$bin" | grep -q "$elf" ||
         fail "$tb contains wrong-arch binary: $(file "$bin")"
 
-    grep -aqm1 "app/com.goshapps.Notepad/$arch/stable" "$fp" ||
+    grep -aqm1 "app/com.goshapps.GoshPad/$arch/stable" "$fp" ||
         fail "$fp is not arch $arch"
     echo "ok: $tb ($arch binary verified)"
     echo "ok: $fp (arch $arch verified)"
@@ -48,7 +44,6 @@ done
 sha256sum -c SHA256SUMS ||
     fail "SHA256SUMS does not match the artifacts"
 
-# Exactly the five expected assets — no strays, no duplicates.
 count="$(find . -maxdepth 1 -type f | wc -l)"
 [ "$count" -eq 5 ] || fail "expected 5 files, found $count"
 

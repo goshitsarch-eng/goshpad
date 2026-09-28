@@ -1,64 +1,25 @@
-# CI / release architecture
+# Release scripts
 
-## Workflows
-
-- `.github/workflows/ci.yml` — push to `main` and pull requests:
-  `cargo fmt --check`, `cargo clippy --all-features --locked -- -W
-  clippy::pedantic`, `cargo test --locked` on `ubuntu-24.04`; a native
-  `cargo check --locked` on `ubuntu-24.04-arm` keeps aarch64 honest
-  between releases. No publishing happens here.
-- `.github/workflows/release.yml` — tag push (`v*`) or manual dispatch
-  with a tag input.
-
-## Release flow
+This repository does not ship a GitHub Actions workflow. Releases are cut
+with the scripts below on a machine that has the Qt 6 / KDE Frameworks 6
+development packages, or the KDE 6.9 Flatpak SDK.
 
 ```
-validate            tag ↔ Cargo.toml ↔ metainfo ↔ README consistency,
-                    fmt + clippy + tests on the tagged commit
+scripts/check-version.sh vX.Y.Z
+        tag ↔ CMakeLists.txt ↔ metainfo ↔ README
    │
-   ├── native       matrix x86_64 → ubuntu-24.04 / aarch64 → ubuntu-24.04-arm
-   │                cargo build --release --locked, `file` arch check,
-   │                scripts/package-tarball.sh → dist/*.tar.gz
+   ├── scripts/package-tarball.sh X.Y.Z <arch>
+   │        cmake Release build, ELF arch check, dist tarball
    │
-   └── flatpak      same matrix; scripts/package-flatpak.sh →
-                    vendor.sh → flatpak-builder → build-bundle →
-                    bundle-info arch check → dist/*.flatpak
+   └── scripts/package-flatpak.sh X.Y.Z <arch>
+            org.kde.Platform//6.9 + Sdk, flatpak-builder, build-bundle
    │
-release             downloads all four artifacts, writes SHA256SUMS,
-                    scripts/verify-release.sh enforces the complete set,
-                    draft release → upload --clobber → publish →
-                    asserts the five expected assets are attached
+scripts/verify-release.sh <dir> X.Y.Z
+        both architectures' tarballs and Flatpaks, plus SHA256SUMS
 ```
 
-`fail-fast: false` on both matrices so one architecture's failure can't
-cancel the other — but `release` needs both, so a failed arch means no
-release, not a partial one.
+Build both `x86_64` and `aarch64` before publishing. `verify-release.sh`
+refuses a directory that is missing either architecture or has extra files.
 
-## Runners
-
-- x86_64: `ubuntu-24.04`
-- aarch64: `ubuntu-24.04-arm` (native arm64, free-tier in private repos —
-  2 vCPU on private repos vs 4 on public, so arm jobs are slower)
-
-No QEMU, no cross-emulation, no cross-compile: each architecture builds on
-real hardware and the output is arch-verified with `file` on the binary and
-the `app/<id>/<arch>/<branch>` ref embedded in each Flatpak bundle.
-
-## Caching
-
-- Cargo registry/git/target: `cargo-<os>-<arch>-<Cargo.lock hash>` — arch is
-  in the key, so x86 and arm builds can never share a cache.
-- `vendor.tar`: `vendor-<arch>-<Cargo.lock hash>`; restored tar is `touch`ed
-  because `scripts/vendor.sh` compares mtime against `Cargo.lock`.
-
-## Permissions
-
-Workflow-level `contents: read`. Only the `release` job gets
-`contents: write`, which `gh release` needs.
-
-## Third-party actions
-
-`actions/checkout@v7`, `actions/cache@v6`, `actions/upload-artifact@v7`,
-`actions/download-artifact@v8` — first-party actions pinned to major tags.
-Rust comes from rustup (respects `rust-toolchain.toml`); the release is
-created with the `gh` CLI — no third-party release action.
+`just test` is the local gate: Qt Test for text operations, the document
+buffer, and the controller, then `tests/packaging.sh`.

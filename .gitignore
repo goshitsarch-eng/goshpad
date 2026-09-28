@@ -1,0 +1,5 @@
+build/
+dist/
+repo/
+.flatpak-builder/
+.cache/

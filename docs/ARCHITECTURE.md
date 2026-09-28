@@ -1,84 +1,75 @@
 # Architecture
 
-NotePad is a single-window [libcosmic](https://github.com/pop-os/libcosmic)
-(iced) application — `cosmic::Application` with one `Message` enum and one
-`update` match. It is deliberately a monolith: `src/app.rs` holds the model,
-the view, and all message handling (~1,500 lines).
+GoshPad is a single-window Qt 6 application. C++ owns the document, the
+settings, and the File/Edit command state. QML (`Kirigami.ApplicationWindow`)
+draws a classic menu bar, the editor, the find bar, and the dialogs.
 
 ```
-src/main.rs            argv → Flags.files; single-instance forward-or-run;
-                       window size/theme settings; cosmic::app::run
-src/app.rs             App model + Message enum + update; menu bar, find bar,
-                       dialogs, footer, context drawer; file load/save
-src/commands.rs        pure text helpers: find_next (wrap/case), replace one/
-                       all, goto_line, line/col ↔ byte-offset math
-src/config.rs          cosmic-config entry: color_scheme, word_wrap,
-                       show_status_bar, font_family, font_size
-src/key_bind.rs        menu shortcut table (labels; dispatch is in app.rs)
-src/single_instance.rs Unix-socket forward/accept (tokio listener as an iced
-                       subscription); stale-socket cleanup
-src/i18n.rs            Fluent loader (i18n-embed + rust-embed), fl! macro
+src/main.cpp         QGuiApplication, KAboutData, KDBusService, QML engine
+src/controller.h/cpp menus, shortcuts' behavior, dialogs, find/replace, scheme
+src/document.h/cpp   canonical text, display text, undo/redo, load/save
+src/textops.h/cpp    find / replace / go-to / line-column math
+src/settings.h/cpp   KConfig file com.goshapps.GoshPadrc
+src/qml/Main.qml     window, menu bar, editor, find bar, status bar
+src/qml/*Dialog.qml  save-changes, go-to, font, error, about
 ```
 
 ## How the pieces fit
 
-- **Editing state.** The document is `text_editor::Content`; dirtiness is
-  `content.text() != saved_text`. Undo/redo are snapshot stacks of
-  `(String, Cursor)` capped at 100 entries — iced's editor `Action`s have no
-  native undo, so snapshots are the mechanism, not a workaround.
-- **Unsaved-changes flow.** `guard_unsaved(after)` raises
-  `PendingDialog::SaveChanges { after }`. `DialogSave` stores `after` in
-  `pending_after`, then saves; `write_to` proceeds with it on success. This
-  is what makes "Save" from the close prompt continue into New/Open/Exit.
-- **Close path.** `main.rs` sets `exit_on_close(false)`; window-close and
-  File ▸ Exit both become `Message::Exit` → `guard_unsaved(AfterSave::Close)`.
-- **Shortcuts.** `key_bind.rs` builds the `KeyBind → MenuAction` map — but
-  this libcosmic rev only uses it to *render* shortcut labels; there is no
-  menu-level dispatcher. Real dispatch is `editor_key_binding`, which the
-  editor widget consults on every `KeyPressed` event it sees — iced
-  broadcasts events to the whole widget tree, so the app's custom arms
-  (which don't check `press.status`) fire app-wide, including inside the
-  Find/Replace fields. Modal dialogs swallow keyboard events before they
-  reach the editor, so shortcuts go quiet while a dialog is open. The
-  unmapped keys fall through to iced's `Binding::from_key_press`, which does
-  require focus — Ctrl+X/C/V/A, Delete, and motion keys therefore act on
-  whichever widget is focused.
-- **Config.** `cosmic-config` writes one RON file per key under
-  `~/.config/cosmic/com.goshapps.Notepad/v1/`; `watch_config` live-reloads
-  external edits. In the Flatpak, `--filesystem=xdg-config/cosmic:rw` maps the
-  same host directory, so native and sandboxed installs share settings.
-- **Theme.** `theme_for` maps System → `system_preference`, Light/Dark →
-  pinned palettes (`ThemeType::Custom`) so the desktop can't overwrite them.
-- **Single instance.** First process binds
-  `$XDG_RUNTIME_DIR/com.goshapps.Notepad.sock`; later launches write
-  newline-separated paths, wait for a 1-byte ack, and exit. The running
-  instance focuses its window and opens the first path (empty payload = just
-  focus).
-- **File IO.** Load is strict `String::from_utf8` — invalid bytes show an
-  error dialog and leave the document untouched (re-saving a lossy decode
-  would corrupt the file). Line endings are never normalized: the editor's
-  per-line `LineEnding`s round-trip CRLF and mixed endings byte-identically.
-- **Dialogs.** File open/save use `cosmic::dialog::file_chooser` (XDG portal),
-  so they work inside the Flatpak without filesystem permissions; file
-  arguments passed to the Flatpak arrive via the document portal.
-- **i18n.** `fl!` resolves keys from `i18n/en/notepad.ftl`, embedded at
-  compile time; the fallback bundle loads lazily, so `fl!` works in tests
-  without `i18n::init`.
+- **Editing state.** `Document` stores the canonical `QString`, including
+  original `\r\n` and lone `\r` breaks. The text area only sees `\n`.
+  Edits are merged back by line: unchanged breaks stay, and a newly inserted
+  line break is `\n`. Dirtiness is canonical text versus the last saved
+  canonical text.
+- **Undo.** Snapshots of `(canonical text, caret, selection)`, capped at 100.
+  A new edit clears the redo stack. The caret restored is the one committed
+  before the edit.
+- **Unsaved changes.** `Controller::guard` opens the save-changes dialog and
+  remembers New, Open, Open-path, or Close. Save writes the file (via Save
+  As when the document has no path) and then continues that action. Discard
+  marks the buffer clean and continues. Cancel drops the pending action. A
+  failed save shows the OS error and, when the save was part of that
+  continuation, puts the save-changes dialog back when the error is dismissed.
+- **Close path.** The window's `onClosing` handler rejects the close until
+  `Controller` emits `quitRequested`.
+- **Shortcuts.** App-wide menu shortcuts are Qt Quick `Action` shortcuts, and
+  they are disabled while a dialog or file chooser is open. Ctrl+X/C/V/A and
+  the insert/delete alternates are window shortcuts enabled only while the
+  editor has focus, so a Find field keeps those keys. Esc closes a dialog
+  (or About), then the Find bar.
+- **Config.** `KSharedConfig` group `Editor` in
+  `~/.config/com.goshapps.GoshPadrc`. Keys: `color_scheme`, `word_wrap`,
+  `show_status_bar`, `font_family`, `font_size`. There is no import from
+  `~/.config/cosmic/`.
+- **Theme.** System calls `QStyleHints::unsetColorScheme()`. Light and Dark
+  call `setColorScheme()`. Kirigami and Qt Quick Controls follow that hint.
+  The header button toggles between Light and Dark and labels the mode it
+  will switch to.
+- **Single instance.** `KDBusService` in unique mode. The service name comes
+  from the organization domain `goshapps.com` and the component name
+  `goshpad` (`com.goshapps.goshpad`). A second launch emits
+  `activateRequested` on the running process and exits. The handler focuses
+  the window and, if a path was passed, runs the unsaved-changes guard. If
+  the bus cannot be claimed, `NoExitOnFailure` lets another window start.
+- **File IO.** Load uses `QStringDecoder` in UTF-8 mode. Invalid bytes show
+  "Could not open file" and leave the document untouched. Save writes the
+  canonical string as UTF-8. File dialogs are Qt Quick `FileDialog`s, which
+  use the XDG portal inside Flatpak.
+- **i18n.** `KLocalization::setupLocalizedContext` exposes `i18n()` to QML.
+  The domain is `goshpad`. Only English source strings ship.
 
-## Testing approach
+## Testing
 
-`commands.rs` and the `App` model are testable without a display:
-`App::with_config` is the seam that lets tests inject a config (or a
-tempdir-backed handler) instead of touching `~/.config`. iced `Task`s are
-lazy, so tests drive `update()` directly and assert on state. Packaging
-invariants (manifest finish-args, version consistency, license install lines,
-the libcosmic rev pin) are locked by `tests/packaging.rs`.
+`textops` and `Document` tests do not need a display. `tst_controller` uses
+an offscreen Qt Quick platform and `QStandardPaths::setTestModeEnabled` so
+settings stay out of the home directory. `tests/packaging.sh` locks the app
+id, version, runtime, and finish-args.
 
 ## Packaging
 
-The Flatpak (`com.goshapps.Notepad.json`) builds fully offline:
-`cargo build --release --frozen --offline` inside the sandbox against
-`vendor/` + `.cargo/config.toml` produced by `scripts/vendor.sh` (a `dir`
-source carries the materialized tree into the build). libcosmic is pinned by
-`rev` in `Cargo.toml` so a lockfile regen can't drift to a new master.
-`vendor.tar` is a gitignored local cache keyed on `Cargo.lock` freshness.
+`com.goshapps.GoshPad.json` builds with `cmake-ninja` on
+`org.kde.Platform//6.9` and installs into `/app`. Finish-args are ipc,
+Wayland, fallback X11, and the desktop portal. There is no host filesystem
+permission and no COSMIC config mount. `justfile` configures CMake with
+prefix `/usr` and installs the binary, desktop file, metainfo, icon, and
+license files.
