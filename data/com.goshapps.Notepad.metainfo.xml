@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.goshapps.Notepad</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>NotePad</name>
+  <summary>A native COSMIC clone of Microsoft Notepad</summary>
+  <description>
+    <p>
+      NotePad is a lightweight plain-text editor that recreates the classic
+      Microsoft Notepad (Windows XP) experience using libcosmic, with support
+      for system, light, and dark color schemes on the COSMIC desktop.
+    </p>
+    <p>
+      This is an independent implementation and is not affiliated with or
+      endorsed by Microsoft.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Open, edit, and save plain text files</li>
+      <li>Cut, copy, paste, undo, and redo</li>
+      <li>Find, replace, and go to a line number</li>
+      <li>Choose an editor font from the Format menu</li>
+      <li>Word wrap toggle and a live line/column status bar</li>
+      <li>Insert the current time and date (F5)</li>
+      <li>System, light, and dark color schemes</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">com.goshapps.Notepad.desktop</launchable>
+  <url type="homepage">https://github.com/goshitsarch-eng/notepad</url>
+  <url type="bugtracker">https://github.com/goshitsarch-eng/notepad/issues</url>
+  <developer id="com.goshapps">
+    <name>Gosh</name>
+  </developer>
+  <provides>
+    <id>com.system76.CosmicApplication</id>
+      <binary>notepad</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="3.0.0" date="2026-09-06">
+      <description>
+        <p>
+          Rewritten on libcosmic. NotePad is now a native COSMIC application
+          with portal file dialogs, cosmic-config persistence, and system,
+          light, and dark themes from the COSMIC desktop.
+        </p>
+        <p>
+          The File, Edit, Format, View, and Help menus share a leading check
+          column so command, toggle, and submenu labels line up.
+        </p>
+        <p>
+          Closing the window prompts to save, and Save from that dialog
+          continues New, Open, or Exit after Save As. A second launch focuses
+          the existing window and forwards file paths. Find, Go To, and the
+          status bar handle UTF-8 text. Undo and Redo restore the caret.
+          Word wrap, font, status bar, and color scheme persist in Flatpak.
+        </p>
+      </description>
+    </release>
+    <release version="2.0.4" date="2026-09-01">
+      <description>
+        <p>
+          Make explicit Light Mode foregrounds deterministic across menus,
+          popups, dialogs, editor chrome, and disabled or selected states when
+          the host Plasma session uses a dark color scheme.
+        </p>
+      </description>
+    </release>
+    <release version="2.0.3" date="2026-08-31">
+      <description>
+        <p>
+          Keep menu text readable in Light Mode on KDE, and make the Find bar
+          closable with a visible accessible button or the Escape key.
+        </p>
+      </description>
+    </release>
+    <release version="2.0.2" date="2026-08-30">
+      <description>
+        <p>
+          Preserve unsaved editor content when a file-open request arrives
+          from a secondary application instance or desktop launcher.
+        </p>
+      </description>
+    </release>
+    <release version="2.0.1" date="2026-08-29">
+      <description>
+        <p>
+          Align the Flatpak with KDE and PySide 6.10, correct the public maker
+          identity, and add release-metadata regression coverage.
+        </p>
+      </description>
+    </release>
+    <release version="2.0.0" date="2026-08-29">
+      <description>
+        <p>
+          Rewritten on Qt 6. Light and dark theming now follows the Kirigami
+          color guidelines: the app honors the system color scheme by default
+          and can be pinned to a light or dark scheme from the View menu.
+        </p>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-08-19">
+      <description>
+        <p>Initial release of the GTK4 NotePad clone.</p>
+      </description>
+    </release>
+  </releases>
+</component>

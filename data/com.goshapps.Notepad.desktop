@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NotePad
+GenericName=Text Editor
+Comment=A native COSMIC clone of Microsoft Notepad
+Exec=notepad %F
+Icon=com.goshapps.Notepad
+Terminal=false
+Categories=Utility;TextEditor;X-COSMIC;
+MimeType=text/plain;
+Keywords=notepad;text;editor;plaintext;
+StartupNotify=true
